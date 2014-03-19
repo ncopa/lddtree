@@ -133,6 +133,16 @@ find_elf() {
 	return 1
 }
 
+show_resolved() {
+	local p="$1"
+	local oldpwd="$PWD"
+	while [ -L "$p" ]; do
+		echo "$p"
+		p=$(realpath "$p")
+	done
+	echo "$p"
+}
+
 show_elf() {
 	local elf=$1 indent=$2 parent_elfs=$3
 	local rlib lib libs
@@ -150,7 +160,7 @@ show_elf() {
 	esac
 	parent_elfs="${parent_elfs},${elf}"
 	if ${LIST} ; then
-		echo "${resolved:-$1}"
+		show_resolved "${resolved:-$1}"
 	else
 		printf "${resolved:-not found}"
 	fi
