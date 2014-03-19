@@ -71,6 +71,9 @@ find_elf() {
 			local path pe
 			for path ; do
 				: ${path:=${PWD}}
+				if [ "${path#${ROOT}}" = "${path}" ]; then
+					path="${ROOT}${path#/}"
+				fi
 				pe="${path%/}/${elf#/}"
 				if [ -e "${pe}" ] ; then
 					if [ "$(elf_specs "${pe}")" = "${elf_specs}" ] ; then
