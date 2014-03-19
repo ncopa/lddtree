@@ -49,7 +49,10 @@ elf_specs() {
 		sed -r 's: (LINUX|GNU)$: NONE:'
 }
 
-lib_paths_fallback="${ROOT}lib* ${ROOT}usr/lib* ${ROOT}usr/local/lib*"
+unset lib_paths_fallback
+for p in ${ROOT}lib* ${ROOT}usr/lib* ${ROOT}usr/local/lib*; do
+	lib_paths_fallback="${lib_paths_fallback}${lib_paths_fallback:+:}${p}"
+done
 c_ldso_paths_loaded='false'
 find_elf() {
 	_find_elf=''
@@ -60,9 +63,14 @@ find_elf() {
 		return 0
 	else
 		check_paths() {
-			local elf=$1 ; shift
+			local elf="$1"
+			local pathstr="$2"
+			IFS=:
+			set -- $pathstr
+			unset IFS
 			local path pe
 			for path ; do
+				: ${path:=${PWD}}
 				pe="${path%/}/${elf#/}"
 				if [ -e "${pe}" ] ; then
 					if [ "$(elf_specs "${pe}")" = "${elf_specs}" ] ; then
@@ -77,20 +85,14 @@ find_elf() {
 		if [ "${c_last_needed_by}" != "${needed_by}" ] ; then
 			c_last_needed_by="${needed_by}"
 			c_last_needed_by_rpaths=$(scanelf -qF '#F%r' "${needed_by}" | \
-				sed -e 's|:| |g' -e "s:[$]ORIGIN:${needed_by%/*}:")
+				sed -e "s:[$]ORIGIN:${needed_by%/*}:")
 		fi
-		check_paths "${elf}" ${c_last_needed_by_rpaths} && return 0
+		if [ -n "${c_last_needed_by_rpaths}" ]; then
+			check_paths "${elf}" "${c_last_needed_by_rpaths}" && return 0
+		fi
 
 		if [ -n "${LD_LIBRARY_PATH}" ] ; then
-			# Need to handle empty paths as $PWD,
-			# and handle spaces in between the colons
-			local p path=${LD_LIBRARY_PATH}
-			while : ; do
-				p=${path%%:*}
-				check_paths "${elf}" "${p:-${PWD}}" && return 0
-				[ "${path}" = "${path#*:}" ] && break
-				path=${path#*:}
-			done
+			check_paths "${elf}" "${LD_LIBRARY_PATH}"
 		fi
 
 		if ! ${c_ldso_paths_loaded} ; then
@@ -120,10 +122,10 @@ find_elf() {
 			fi
 		fi
 		if [ -n "${c_ldso_paths}" ] ; then
-			check_paths "${elf}" ${c_ldso_paths//:/ } && return 0
+			check_paths "${elf}" "${c_ldso_paths}" && return 0
 		fi
 
-		check_paths "${elf}" ${lib_paths_ldso:-${lib_paths_fallback}} && return 0
+		check_paths "${elf}" "${lib_paths_ldso:-${lib_paths_fallback}}" && return 0
 	fi
 	return 1
 }
@@ -163,7 +165,7 @@ show_elf() {
 			# Extract the default lib paths out of the ldso.
 			lib_paths_ldso=$(
 				strings "${interp}" | \
-				sed -nr -e "/^\/.*lib/{s|^/?|${ROOT}|;s|/$||;s|/?:/?|\n${ROOT}|g;p}"
+				sed -nr -e "/^\/.*lib/{s|^/?|${ROOT}|;s|/$||;s|/?:/?|:${ROOT}|g;p}"
 			)
 		fi
 		interp=${interp##*/}
