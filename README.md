@@ -12,9 +12,11 @@ Differences from pax-utils' bash version:
 
 lddtree.sh depends on scanelf from pax-utils.
 
-Usage: lddtree.sh [options] <ELF file[s]>
+```
+Usage: lddtree.sh [options] ELFFILE...
 
 Options:
+
   -a              Show all duplicated dependencies
   -x              Run with debugging
   -R <root>       Use this ROOT filesystem tree
@@ -22,4 +24,4 @@ Options:
   -l              Display output in a flat format
   -h              Show this help output
   -V              Show version information
-
+```
