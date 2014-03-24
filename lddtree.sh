@@ -138,6 +138,9 @@ show_resolved() {
 	while [ -L "$p" ]; do
 		echo "$p"
 		p=$(realpath "$p")
+		if [ "${p#$ROOT}" = "$p" ]; then
+			p="${ROOT}${p#/}"
+		fi
 	done
 	echo "$p"
 }
@@ -186,6 +189,12 @@ show_elf() {
 
 	[ -z "${resolved}" ] && return
 
+	while [ -L "$resolved" ]; do
+		resolved=$(realpath "$resolved")
+		if [ "${resolved#$ROOT}" = "$resolved" ]; then
+			resolved="${ROOT}${resolved#/}"
+		fi
+	done
 	libs=$(scanelf -qF '#F%n' "${resolved}")
 
 	local my_allhits
