@@ -5,7 +5,7 @@
 # $Header: /var/cvsroot/gentoo-projects/pax-utils/lddtree.sh,v 1.22 2013/04/07 19:20:09 vapier Exp $
 
 argv0=${0##*/}
-version=1.23
+version=1.24
 
 : ${ROOT:=/}
 
