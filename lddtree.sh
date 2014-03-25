@@ -254,7 +254,11 @@ for elf ; do
 	elif [ ! -r "${elf}" ] ; then
 		error "${elf}: file is not readable"
 	elif [ -d "${elf}" ] ; then
-		error "${elf}: is a directory"
+		if $LIST; then
+			echo ${elf}
+		else
+			error "${elf}: is a directory"
+		fi
 	else
 		allhits=""
 		[ "${elf##*/*}" = "${elf}" ] && elf="./${elf}"
