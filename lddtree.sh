@@ -132,19 +132,6 @@ find_elf() {
 	return 1
 }
 
-show_resolved() {
-	local p="$1"
-	local oldpwd="$PWD"
-	while [ -L "$p" ]; do
-		echo "$p"
-		p=$(realpath "$p")
-		if [ "${p#$ROOT}" = "$p" ]; then
-			p="${ROOT}${p#/}"
-		fi
-	done
-	echo "$p"
-}
-
 show_elf() {
 	local elf=$1 indent=$2 parent_elfs=$3
 	local rlib lib libs
@@ -162,10 +149,30 @@ show_elf() {
 	esac
 	parent_elfs="${parent_elfs},${elf}"
 	if ${LIST} ; then
-		show_resolved "${resolved:-$1}"
+		echo "${resolved:-$1}"
 	else
 		printf "${resolved:-not found}"
 	fi
+	local oldpwd="$PWD"
+	cd "${resolved%/*}"
+	while [ -L "$resolved" ]; do
+		resolved=$(readlink "$resolved")
+		case "$resolved" in
+		/*)	resolved="${ROOT}${resolved#/}"
+			cd "${resolved%/*}"
+			;;
+		*/*)	cd "${resolved%/*}"
+			;;
+		esac
+		resolved=$(pwd -P)/${resolved##*/}
+
+		if ${LIST} ; then
+			echo "${resolved:-$1}"
+		else
+			printf "${resolved:-not found}"
+		fi
+	done
+	cd "$oldpwd"
 	if [ ${indent} -eq 0 ] ; then
 		elf_specs=$(elf_specs "${resolved}")
 		interp=$(scanelf -qF '#F%i' "${resolved}")
@@ -189,12 +196,6 @@ show_elf() {
 
 	[ -z "${resolved}" ] && return
 
-	while [ -L "$resolved" ]; do
-		resolved=$(realpath "$resolved")
-		if [ "${resolved#$ROOT}" = "$resolved" ]; then
-			resolved="${ROOT}${resolved#/}"
-		fi
-	done
 	libs=$(scanelf -qF '#F%n' "${resolved}")
 
 	local my_allhits
