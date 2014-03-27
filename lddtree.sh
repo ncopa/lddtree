@@ -132,6 +132,14 @@ find_elf() {
 	return 1
 }
 
+list_existing_file() {
+	if [ -e "$1" ]; then
+		echo "$1"
+	else
+		echo "$1: Not found." >&2
+	fi
+}
+
 show_elf() {
 	local elf=$1 indent=$2 parent_elfs=$3
 	local rlib lib libs
@@ -149,7 +157,7 @@ show_elf() {
 	esac
 	parent_elfs="${parent_elfs},${elf}"
 	if ${LIST} ; then
-		echo "${resolved:-$1}"
+		list_existing_file "${resolved:-$1}"
 	else
 		printf "${resolved:-not found}"
 	fi
@@ -167,7 +175,7 @@ show_elf() {
 		resolved=$(pwd -P)/${resolved##*/}
 
 		if ${LIST} ; then
-			echo "${resolved:-$1}"
+			list_existing_file "${resolved:-$1}"
 		else
 			printf "${resolved:-not found}"
 		fi
