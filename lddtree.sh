@@ -214,7 +214,7 @@ show_elf() {
 		allhits="${allhits},${interp},${libs}"
 	fi
 
-	for lib in ${libs//,/ } ; do
+	for lib in $(echo $libs | tr ',' ' ') ; do
 		lib=${lib##*/}
 		case ",${my_allhits}," in
 			*,${lib},*) continue;;
