@@ -1,8 +1,8 @@
 #!/bin/sh
 # Copyright 2007-2013 Gentoo Foundation
 # Copyright 2007-2013 Mike Frysinger <vapier@gentoo.org>
+# Copyright 2014-2015 Natanael Copa <ncopa@alpinelinux.org>
 # Distributed under the terms of the GNU General Public License v2
-# $Header: /var/cvsroot/gentoo-projects/pax-utils/lddtree.sh,v 1.22 2013/04/07 19:20:09 vapier Exp $
 
 argv0=${0##*/}
 version=1.25
@@ -216,7 +216,12 @@ show_elf() {
 		allhits="${allhits},${interp},${libs}"
 	fi
 
-	for lib in ${libs//,/ } ; do
+	oifs="$IFS"
+	IFS=,
+	set -- ${libs}
+	IFS="$oifs"
+
+	for lib; do
 		lib=${lib##*/}
 		case ",${my_allhits}," in
 			*,${lib},*) continue;;
