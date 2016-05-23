@@ -46,6 +46,9 @@ elf_specs() {
 	# GNU & LINUX to NONE. #442024 #464380
 	scanelf -BF '#F%a %M %D %I' "$1" | \
 		sed -r 's: (LINUX|GNU)$: NONE:'
+	# scanelf -BF '#F%a %M %D %I' $(which ssh)
+	# EM_X86_64 ELFCLASS64 LE NONE
+
 }
 
 unset lib_paths_fallback
