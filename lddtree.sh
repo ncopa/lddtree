@@ -88,6 +88,7 @@ find_elf() {
 			c_last_needed_by="${needed_by}"
 			c_last_needed_by_rpaths=$(scanelf -qF '#F%r' "${needed_by}" | \
 				sed -e "s:[$]ORIGIN:${needed_by%/*}:")
+			# RETURN rpath ==> replace with objdump -p | grep RPATH (or RUNPATH)
 		fi
 		if [ -n "${c_last_needed_by_rpaths}" ]; then
 			check_paths "${elf}" "${c_last_needed_by_rpaths}" && return 0
@@ -186,6 +187,10 @@ show_elf() {
 	if [ ${indent} -eq 0 ] ; then
 		elf_specs=$(elf_specs "${resolved}")
 		interp=$(scanelf -qF '#F%i' "${resolved}")
+		# RETURN interpreter
+		#	scanelf -qF '#F%i' $(which ssh)
+		# 	/lib64/ld-linux-x86-64.so.2
+
 		# ignore interpreters that do not have absolute path
 		[ "${interp#/}" = "${interp}" ] && interp=
 		[ -n "${interp}" ] && interp="${ROOT}${interp#/}"
@@ -209,7 +214,9 @@ show_elf() {
 	[ -z "${resolved}" ] && return
 
 	libs=$(scanelf -qF '#F%n' "${resolved}")
-
+	# RETURN deps lib replace by objdump -p | grep NEEDED
+	# 	scanelf -qF '#F%n' $(which ssh)
+	#	libselinux.so.1,libcrypto.so.1.0.0,libdl.so.2,libz.so.1,libresolv.so.2,libgssapi_krb5.so.2,libc.so.6
 	local my_allhits
 	if ! ${SHOW_ALL} ; then
 		my_allhits="${allhits}"
