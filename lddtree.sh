@@ -56,7 +56,7 @@ elf_specs() {
 		scanelf -BF '#F%a %M %D %I' "$1" | sed -r 's: (LINUX|GNU)$: NONE:'
 	fi
 	if [ "$BACKEND" = "readelf" ]; then
-		readelf -h "$1" | grep -E 'Class:|Data:|Machine|OS.ABI:' | cut -d ':' -f 2 | sed 's/^ *//g' | tr '\n' ' '
+		readelf -h "$1" | grep -E 'Class:|Data:|Machine:|OS.ABI:' | cut -d ':' -f 2 | sed 's/^ *//g' | tr '\n' ' '
 	fi
 }
 
