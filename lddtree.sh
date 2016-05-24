@@ -4,6 +4,8 @@
 # Copyright 2014-2015 Natanael Copa <ncopa@alpinelinux.org>
 # Distributed under the terms of the GNU General Public License v2
 
+# Fork to replace scanelf with readelf <nomorgan@gmail.com>
+
 argv0=${0##*/}
 version=1.25
 
