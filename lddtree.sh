@@ -44,8 +44,10 @@ elf_specs() {
 	# With glibc, the NONE, SYSV, GNU, and LINUX OSABI's are compatible.
 	# LINUX and GNU are the same thing, as are NONE and SYSV, so normalize
 	# GNU & LINUX to NONE. #442024 #464380
-	scanelf -BF '#F%a %M %D %I' "$1" | \
-		sed -r 's: (LINUX|GNU)$: NONE:'
+	#scanelf -BF '#F%a %M %D %I' "$1" | \
+	#	sed -r 's: (LINUX|GNU)$: NONE:'
+	# RETURN some elf header info
+	readelf -h $(which ps) | grep -E 'Class:|Data:|Machine|OS.ABI:' | cut -d ':' -f 2 | sed 's/^ *//g' | tr '\n' ' '
 	# scanelf -BF '#F%a %M %D %I' $(which ssh)
 	# EM_X86_64 ELFCLASS64 LE NONE
 
@@ -89,9 +91,13 @@ find_elf() {
 
 		if [ "${c_last_needed_by}" != "${needed_by}" ] ; then
 			c_last_needed_by="${needed_by}"
-			c_last_needed_by_rpaths=$(scanelf -qF '#F%r' "${needed_by}" | \
-				sed -e "s:[$]ORIGIN:${needed_by%/*}:")
-			# RETURN rpath ==> replace with objdump -p | grep RPATH (or RUNPATH)
+			#c_last_needed_by_rpaths=$(scanelf -qF '#F%r' "${needed_by}" | \
+			#	sed -e "s:[$]ORIGIN:${needed_by%/*}:")
+			# RETURN rpath
+			local _tmp_rpath=$(readelf -d "${needed_by}" | grep RUNPATH | sed -e "s:[$]ORIGIN:${needed_by%/*}:")
+			
+			[ "$_tmp_rpath" = "" ] && _tmp_rpath=$(readelf -d "${needed_by}" | grep RPATH | sed -e "s:[$]ORIGIN:${needed_by%/*}:")
+			c_last_needed_by_rpaths="$_tmp_rpath"
 		fi
 		if [ -n "${c_last_needed_by_rpaths}" ]; then
 			check_paths "${elf}" "${c_last_needed_by_rpaths}" && return 0
@@ -189,7 +195,8 @@ show_elf() {
 	fi
 	if [ ${indent} -eq 0 ] ; then
 		elf_specs=$(elf_specs "${resolved}")
-		interp=$(scanelf -qF '#F%i' "${resolved}")
+		#interp=$(scanelf -qF '#F%i' "${resolved}")
+		interp=$(readelf -e "${resolved}" | grep "interpreter:" | cut -d ':' -f 2 | sed s/]//g | sed 's/^ *//g')
 		# RETURN interpreter
 		#	scanelf -qF '#F%i' $(which ssh)
 		# 	/lib64/ld-linux-x86-64.so.2
@@ -216,8 +223,9 @@ show_elf() {
 
 	[ -z "${resolved}" ] && return
 
-	libs=$(scanelf -qF '#F%n' "${resolved}")
-	# RETURN deps lib replace by objdump -p | grep NEEDED
+	#libs=$(scanelf -qF '#F%n' "${resolved}")
+	libs=$(readelf -d "${resolved}" | grep "NEEDED" | grep -o -E "\[[^]]*\]" | grep -o -E "[^][]*" | tr '\n' ',')
+	# RETURN deps lib
 	# 	scanelf -qF '#F%n' $(which ssh)
 	#	libselinux.so.1,libcrypto.so.1.0.0,libdl.so.2,libz.so.1,libresolv.so.2,libgssapi_krb5.so.2,libc.so.6
 	local my_allhits
