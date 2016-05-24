@@ -4,15 +4,20 @@
 # Copyright 2014-2015 Natanael Copa <ncopa@alpinelinux.org>
 # Distributed under the terms of the GNU General Public License v2
 
-# Fork to replace scanelf with readelf <nomorgan@gmail.com>
+# Option to choose a backend tool (scanelf or readelf) <nomorgan@gmail.com>
+
 
 argv0=${0##*/}
-version=1.25
+version=1.25-CURRENT
 
 : ${ROOT:=/}
 
 [ "${ROOT}" = "${ROOT%/}" ] && ROOT="${ROOT}/"
 [ "${ROOT}" = "${ROOT#/}" ] && ROOT="${PWD}/${ROOT}"
+
+# Default backend tool to analyse elf
+BACKEND=scanelf
+
 
 usage() {
 	cat <<-EOF
@@ -26,6 +31,7 @@ usage() {
 	  -R <root>       Use this ROOT filesystem tree
 	  --no-auto-root  Do not automatically prefix input ELFs with ROOT
 	  -l              Display output in a flat format
+	  -b		  Change default backend tools (default is scanelf, alternative is readelf)
 	  -h              Show this help output
 	  -V              Show version information
 	EOF
@@ -46,13 +52,12 @@ elf_specs() {
 	# With glibc, the NONE, SYSV, GNU, and LINUX OSABI's are compatible.
 	# LINUX and GNU are the same thing, as are NONE and SYSV, so normalize
 	# GNU & LINUX to NONE. #442024 #464380
-	#scanelf -BF '#F%a %M %D %I' "$1" | \
-	#	sed -r 's: (LINUX|GNU)$: NONE:'
-	# RETURN some elf header info
-	readelf -h $(which ps) | grep -E 'Class:|Data:|Machine|OS.ABI:' | cut -d ':' -f 2 | sed 's/^ *//g' | tr '\n' ' '
-	# scanelf -BF '#F%a %M %D %I' $(which ssh)
-	# EM_X86_64 ELFCLASS64 LE NONE
-
+	if [ "$BACKEND" = "scanelf" ]; then
+		scanelf -BF '#F%a %M %D %I' "$1" | sed -r 's: (LINUX|GNU)$: NONE:'
+	fi
+	if [ "$BACKEND" = "readelf" ]; then
+		readelf -h "$1" | grep -E 'Class:|Data:|Machine|OS.ABI:' | cut -d ':' -f 2 | sed 's/^ *//g' | tr '\n' ' '
+	fi
 }
 
 unset lib_paths_fallback
@@ -93,13 +98,14 @@ find_elf() {
 
 		if [ "${c_last_needed_by}" != "${needed_by}" ] ; then
 			c_last_needed_by="${needed_by}"
-			#c_last_needed_by_rpaths=$(scanelf -qF '#F%r' "${needed_by}" | \
-			#	sed -e "s:[$]ORIGIN:${needed_by%/*}:")
-			# RETURN rpath
-			local _tmp_rpath=$(readelf -d "${needed_by}" | grep RUNPATH | sed -e "s:[$]ORIGIN:${needed_by%/*}:")
-			
-			[ "$_tmp_rpath" = "" ] && _tmp_rpath=$(readelf -d "${needed_by}" | grep RPATH | sed -e "s:[$]ORIGIN:${needed_by%/*}:")
-			c_last_needed_by_rpaths="$_tmp_rpath"
+			if [ "$BACKEND" = "scanelf" ]; then
+				c_last_needed_by_rpaths=$(scanelf -qF '#F%r' "${needed_by}" | sed -e "s:[$]ORIGIN:${needed_by%/*}:")
+			fi
+			if [ "$BACKEND" = "readelf" ]; then
+				local _tmp_rpath=$(readelf -d "${needed_by}" | grep RUNPATH | sed -e "s:[$]ORIGIN:${needed_by%/*}:")
+				[ "$_tmp_rpath" = "" ] && _tmp_rpath=$(readelf -d "${needed_by}" | grep RPATH | sed -e "s:[$]ORIGIN:${needed_by%/*}:")
+				c_last_needed_by_rpaths="$_tmp_rpath"
+			fi
 		fi
 		if [ -n "${c_last_needed_by_rpaths}" ]; then
 			check_paths "${elf}" "${c_last_needed_by_rpaths}" && return 0
@@ -197,11 +203,12 @@ show_elf() {
 	fi
 	if [ ${indent} -eq 0 ] ; then
 		elf_specs=$(elf_specs "${resolved}")
-		#interp=$(scanelf -qF '#F%i' "${resolved}")
-		interp=$(readelf -e "${resolved}" | grep "interpreter:" | cut -d ':' -f 2 | sed s/]//g | sed 's/^ *//g')
-		# RETURN interpreter
-		#	scanelf -qF '#F%i' $(which ssh)
-		# 	/lib64/ld-linux-x86-64.so.2
+		if [ "$BACKEND" = "scanelf" ]; then
+			interp=$(scanelf -qF '#F%i' "${resolved}")
+		fi
+		if [ "$BACKEND" = "readelf" ]; then
+			interp=$(readelf -e "${resolved}" | grep "interpreter:" | cut -d ':' -f 2 | sed s/]//g | sed 's/^ *//g')
+		fi
 
 		# ignore interpreters that do not have absolute path
 		[ "${interp#/}" = "${interp}" ] && interp=
@@ -224,12 +231,12 @@ show_elf() {
 	${LIST} || printf "\n"
 
 	[ -z "${resolved}" ] && return
-
-	#libs=$(scanelf -qF '#F%n' "${resolved}")
-	libs=$(readelf -d "${resolved}" | grep "NEEDED" | grep -o -E "\[[^]]*\]" | grep -o -E "[^][]*" | tr '\n' ',')
-	# RETURN deps lib
-	# 	scanelf -qF '#F%n' $(which ssh)
-	#	libselinux.so.1,libcrypto.so.1.0.0,libdl.so.2,libz.so.1,libresolv.so.2,libgssapi_krb5.so.2,libc.so.6
+	if [ "$BACKEND" = "scanelf" ]; then
+		libs=$(scanelf -qF '#F%n' "${resolved}")
+	fi
+	if [ "$BACKEND" = "readelf" ]; then
+		libs=$(readelf -d "${resolved}" | grep "NEEDED" | grep -o -E "\[[^]]*\]" | grep -o -E "[^][]*" | tr '\n' ',')
+	fi
 	local my_allhits
 	if ! ${SHOW_ALL} ; then
 		my_allhits="${allhits}"
@@ -257,12 +264,13 @@ SET_X=false
 LIST=false
 AUTO_ROOT=true
 
-while getopts haxVR:l-:  OPT ; do
+while getopts haxVb:R:l-:  OPT ; do
 	case ${OPT} in
 	a) SHOW_ALL=true;;
 	x) SET_X=true;;
 	h) usage;;
 	V) version;;
+	b) BACKEND="${OPTARG%}";;
 	R) ROOT="${OPTARG%/}/";;
 	l) LIST=true;;
 	-) # Long opts ftw.
@@ -274,6 +282,8 @@ while getopts haxVR:l-:  OPT ; do
 	?) usage 1;;
 	esac
 done
+
+
 shift $(( $OPTIND - 1))
 [ -z "$1" ] && usage 1
 
