@@ -3,6 +3,8 @@ lddtree
 
 Fork of pax-utils' lddtree.sh
 
+This forked version use readelf instead of scanelf
+
 This is a shell version of pax-utils' lddtree. This tool is useful for
 resolving elf dependencies when creating initramfs images.
 
