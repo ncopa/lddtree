@@ -16,7 +16,7 @@ version=1.25-CURRENT
 [ "${ROOT}" = "${ROOT#/}" ] && ROOT="${PWD}/${ROOT}"
 
 # Default backend tool to analyse elf
-BACKEND=scanelf
+BACKEND="scanelf"
 
 
 usage() {
