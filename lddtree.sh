@@ -35,8 +35,8 @@ usage() {
 	  -l              List binary, interpreter and found dependencies files and their resolved links
 	  -m              List dependencies in flat output
 	  -b              Change default backend tools (default is scanelf, alternative is readelf)
-	  --no-recursive	Do not recursivly parse dependencies
-		--no-header			Do not show header first line (including interpreter)
+	  --no-recursive  Do not recursivly parse dependencies
+	  --no-header     Do not show header first line (including interpreter)
 
 	  -h              Show this help output
 	  -x              Run with debugging
