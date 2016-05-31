@@ -19,11 +19,15 @@ Usage: lddtree.sh [options] ELFFILE...
 Options:
 
   -a              Show all duplicated dependencies
-  -x              Run with debugging
   -R <root>       Use this ROOT filesystem tree
   --no-auto-root  Do not automatically prefix input ELFs with ROOT
-  -l              Display output in a flat format
-  -b		  Change default backend tool (default is scanelf, alternative is readelf)
+  -l              List binary, interpreter and found dependencies files and their resolved links
+  -m              List dependencies in flat output
+  -b              Change default backend tools (default is scanelf, alternative is readelf)
+  --no-recursive	Do not recursivly parse dependencies
+  --no-header			Do not show header first line (including interpreter)
+
   -h              Show this help output
+  -x              Run with debugging
   -V              Show version information
 ```
