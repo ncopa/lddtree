@@ -129,7 +129,6 @@ done
 c_ldso_paths_loaded='false'
 find_elf() {
 	_find_elf=''
-
 	local elf=$1 needed_by=$2
 	if [ "${elf}" != "${elf##*/}" ] && [ -e "${elf}" ] ; then
 		_find_elf=${elf}
@@ -171,6 +170,7 @@ find_elf() {
 				c_last_needed_by_rpaths="$(elf_get_rpath "${needed_by}")"
 			fi
 		fi
+
 		if [ -n "${c_last_needed_by_rpaths}" ]; then
 			# search in rpath
 			check_paths "${elf}" "${c_last_needed_by_rpaths}" && return 0
@@ -283,10 +283,12 @@ show_elf() {
 		if ${HEADER}; then
 			${LIST} && resolv_links "${resolved:-$1}" || \
 			printf "${resolved:-not found}"
+			[ -z "${resolved}" ] && ret=1
 		fi
 	else
 		${LIST} && resolv_links "${resolved:-$1}" || \
 		printf "${resolved:-not found}"
+		[ -z "${resolved}" ] && ret=1
 	fi
 
 	if [ ${indent} -eq 0 ] ; then
@@ -340,7 +342,8 @@ show_elf() {
 	IFS="$oifs"
 
 	for lib; do
-		lib=${lib##*/}
+		# FIXED : do not remove path yet. So if we have an absolute path as linked lib, it could be matched in find_elf
+		#lib=${lib##*/}
 		case ",${my_allhits}," in
 			*,${lib},*) continue;;
 		esac
