@@ -253,7 +253,8 @@ show_elf() {
 			# Extract the default lib paths out of the ldso.
 			lib_paths_ldso=$(
 				strings "${interp}" | \
-				sed -nr -e "/^\/.*lib/{s|^/?|${ROOT}|;s|/$||;s|/?:/?|:${ROOT}|g;p}"
+				sed -nr -e "/^\/.*lib/{s|^/?|${ROOT}|;s|/$||;s|/?:/?|:${ROOT}|g;p}" | \
+				tr '\n' ':'
 			)
 		fi
 		interp=${interp##*/}
