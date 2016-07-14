@@ -21,6 +21,7 @@ usage() {
 	Options:
 	  -a              Show all duplicated dependencies
 	  -x              Run with debugging
+	  -b              Force use of specific backend tools (scanelf or binutils)
 	  -R <root>       Use this ROOT filesystem tree
 	  --no-auto-root  Do not automatically prefix input ELFs with ROOT
 	  -l              Display output in a flat format
@@ -292,7 +293,7 @@ SET_X=false
 LIST=false
 AUTO_ROOT=true
 
-while getopts haxVR:l-:  OPT ; do
+while getopts haxVb:R:l-:  OPT ; do
 	case ${OPT} in
 	a) SHOW_ALL=true;;
 	x) SET_X=true;;
@@ -300,6 +301,7 @@ while getopts haxVR:l-:  OPT ; do
 	V) version;;
 	R) ROOT="${OPTARG%/}/";;
 	l) LIST=true;;
+	b) BACKEND="${OPTARG%}";;
 	-) # Long opts ftw.
 		case ${OPTARG} in
 		no-auto-root) AUTO_ROOT=false;;
@@ -314,13 +316,15 @@ shift $(( $OPTIND - 1))
 
 ${SET_X} && set -x
 
-if which scanelf >/dev/null; then
-	BACKEND=scanelf
-elif which objdump >/dev/null && which readelf >/dev/null; then
-	BACKEND=binutils
-else
-	error "This tool needs either scanelf or binutils (objdump and readelf)"
-	exit 1
+if [ -z "${BACKEND}" ]; then
+	if which scanelf >/dev/null; then
+		BACKEND=scanelf
+	elif which objdump >/dev/null && which readelf >/dev/null; then
+		BACKEND=binutils
+	else
+		error "This tool needs either scanelf or binutils (objdump and readelf)"
+		exit 1
+	fi
 fi
 
 ret=0
@@ -347,4 +351,3 @@ for elf ; do
 	fi
 done
 exit ${ret}
-
