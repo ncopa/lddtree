@@ -21,7 +21,7 @@ usage() {
 	Options:
 	  -a              Show all duplicated dependencies
 	  -x              Run with debugging
-	  -b              Force use of specific backend tools (scanelf or binutils)
+	  -b <backend>    Force use of specific backend tools (scanelf or binutils)
 	  -R <root>       Use this ROOT filesystem tree
 	  --no-auto-root  Do not automatically prefix input ELFs with ROOT
 	  --no-recursive  Do not recursivly parse dependencies
