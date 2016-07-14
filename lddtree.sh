@@ -47,7 +47,6 @@ error() {
 elf_rpath_scanelf() {
 	scanelf -qF '#F%r' "$@"
 }
-
 elf_interp_scanelf() {
 	scanelf -qF '#F%i' "$@"
 }
@@ -69,9 +68,11 @@ elf_specs_scanelf() {
 		sed -r 's: (LINUX|GNU)$: NONE:'
 }
 
+
+
 # functions for binutils backend
 elf_rpath_binutils() {
-	objdump -x "$@" | awk '$1 == "RPATH" || $1 == "RUNPATH" { print $2 }'
+	readelf -d "$1" | awk '$2 == "(RPATH)" || $2 == "(RUNPATH)" { print $5 }' | cut -d '[' -f 2 | sed 's/]//'
 }
 
 elf_interp_binutils() {
@@ -84,7 +85,7 @@ elf_interp_binutils() {
 }
 
 elf_needed_binutils() {
-	objdump -x "$@" | awk '$1 == "NEEDED" { line=line sep $2 ; sep="," } END { print line }'
+	readelf -d "$1" | grep "NEEDED" | grep -o -E "\[[^]]*\]" | grep -o -E "[^][]*" | tr '\n' ',' | sed 's/,$//'
 }
 
 elf_specs_binutils() {
@@ -96,11 +97,14 @@ elf_specs_binutils() {
 		| tr '\n' ' '
 }
 
+
+
+
 # elf wrapper functions
-elf_rpath() { elf_rpath_$BACKEND "$@"; }
-elf_interp() { elf_interp_$BACKEND "$@"; }
-elf_needed() { elf_needed_$BACKEND "$@"; }
-elf_specs() { elf_specs_$BACKEND "$1"; }
+elf_rpath() { [ ! -z "$1" ] && elf_rpath_$BACKEND "$@" | sed -e "s:[$]ORIGIN:${1%/*}:g" | sed -e "s:[$]{ORIGIN}:${1%/*}:g" | sed -e "s,:\.,:${1%/*},g" | sed -e "s,^\.,${1%/*},g"; }
+elf_interp() { [ ! -z "$1" ] && elf_interp_$BACKEND "$@"; }
+elf_needed() { [ ! -z "$1" ] && elf_needed_$BACKEND "$@"; }
+elf_specs() { [ ! -z "$1" ] && elf_specs_$BACKEND "$1"; }
 
 unset lib_paths_fallback
 for p in ${ROOT}lib* ${ROOT}usr/lib* ${ROOT}usr/local/lib*; do
@@ -140,8 +144,7 @@ find_elf() {
 
 		if [ "${c_last_needed_by}" != "${needed_by}" ] ; then
 			c_last_needed_by="${needed_by}"
-			c_last_needed_by_rpaths=$(elf_rpath "${needed_by}" | \
-				sed -e "s:[$]ORIGIN:${needed_by%/*}:")
+			c_last_needed_by_rpaths=$(elf_rpath "${needed_by}")
 		fi
 		if [ -n "${c_last_needed_by_rpaths}" ]; then
 			check_paths "${elf}" "${c_last_needed_by_rpaths}" && return 0
