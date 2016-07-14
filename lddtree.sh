@@ -21,8 +21,11 @@ usage() {
 	Options:
 	  -a              Show all duplicated dependencies
 	  -x              Run with debugging
+	  -b <backend>    Force use of specific backend tools (scanelf or readelf)
 	  -R <root>       Use this ROOT filesystem tree
 	  --no-auto-root  Do not automatically prefix input ELFs with ROOT
+	  --no-recursive  Do not recursivly parse dependencies
+	  --no-header     Do not show header (binary and interpreter info)
 	  -l              Display output in a flat format
 	  -h              Show this help output
 	  -V              Show version information
@@ -44,7 +47,6 @@ error() {
 elf_rpath_scanelf() {
 	scanelf -qF '#F%r' "$@"
 }
-
 elf_interp_scanelf() {
 	scanelf -qF '#F%i' "$@"
 }
@@ -66,12 +68,14 @@ elf_specs_scanelf() {
 		sed -r 's: (LINUX|GNU)$: NONE:'
 }
 
-# functions for binutils backend
-elf_rpath_binutils() {
-	objdump -x "$@" | awk '$1 == "RPATH" || $1 == "RUNPATH" { print $2 }'
+
+
+# functions for readelf backend
+elf_rpath_readelf() {
+	readelf -d "$1" | awk '$2 == "(RPATH)" || $2 == "(RUNPATH)" { print $5 }' | cut -d '[' -f 2 | sed 's/]//'
 }
 
-elf_interp_binutils() {
+elf_interp_readelf() {
 	# readelf -p .interp ouputs:
 	#
 	# String dump of section '.interp':
@@ -80,11 +84,11 @@ elf_interp_binutils() {
 	readelf  -p .interp "$1" | sed -E -n '/\[\s*[0-9]\]/s/^\s*\[.*\]\s*(.*)/\1/p'
 }
 
-elf_needed_binutils() {
-	objdump -x "$@" | awk '$1 == "NEEDED" { line=line sep $2 ; sep="," } END { print line }'
+elf_needed_readelf() {
+	readelf -d "$1" | grep "NEEDED" | grep -o -E "\[[^]]*\]" | grep -o -E "[^][]*" | tr '\n' ',' | sed 's/,$//'
 }
 
-elf_specs_binutils() {
+elf_specs_readelf() {
 	# get Class, Data, Machine and OS/ABI.
 	# the OS/ABI 'GNU', 'System V' and 'Linux' are compatible so normalize
 	readelf -h "$1" \
@@ -93,11 +97,14 @@ elf_specs_binutils() {
 		| tr '\n' ' '
 }
 
+
+
+
 # elf wrapper functions
-elf_rpath() { elf_rpath_$BACKEND "$@"; }
-elf_interp() { elf_interp_$BACKEND "$@"; }
-elf_needed() { elf_needed_$BACKEND "$@"; }
-elf_specs() { elf_specs_$BACKEND "$1"; }
+elf_rpath() { [ ! -z "$1" ] && elf_rpath_$BACKEND "$@" | sed -e "s:[$]ORIGIN:${1%/*}:g" | sed -e "s:[$]{ORIGIN}:${1%/*}:g" | sed -e "s,:\.,:${1%/*},g" | sed -e "s,^\.,${1%/*},g"; }
+elf_interp() { [ ! -z "$1" ] && elf_interp_$BACKEND "$@"; }
+elf_needed() { [ ! -z "$1" ] && elf_needed_$BACKEND "$@"; }
+elf_specs() { [ ! -z "$1" ] && elf_specs_$BACKEND "$1"; }
 
 unset lib_paths_fallback
 for p in ${ROOT}lib* ${ROOT}usr/lib* ${ROOT}usr/local/lib*; do
@@ -137,8 +144,7 @@ find_elf() {
 
 		if [ "${c_last_needed_by}" != "${needed_by}" ] ; then
 			c_last_needed_by="${needed_by}"
-			c_last_needed_by_rpaths=$(elf_rpath "${needed_by}" | \
-				sed -e "s:[$]ORIGIN:${needed_by%/*}:")
+			c_last_needed_by_rpaths=$(elf_rpath "${needed_by}")
 		fi
 		if [ -n "${c_last_needed_by_rpaths}" ]; then
 			check_paths "${elf}" "${c_last_needed_by_rpaths}" && return 0
@@ -215,14 +221,21 @@ resolv_links() {
 }
 
 show_elf() {
-	local elf=$1 indent=$2 parent_elfs=$3
+	local elf="$1" indent="$2" parent_elfs="$3" recurs="$4"
 	local rlib lib libs
 	local interp resolved
 	find_elf "${elf}"
 	resolved=${_find_elf}
 	elf=${elf##*/}
 
-	${LIST} || printf "%${indent}s%s => " "" "${elf}"
+	if [ ${indent} -eq 0 ]; then
+		if ${HEADER}; then
+			${LIST} || printf "%${indent}s%s => " "" "${elf}"
+		fi
+	else
+		${LIST} || printf "%${indent}s%s => " "" "${elf}"
+	fi
+
 	case ",${parent_elfs}," in
 	*,${elf},*)
 		${LIST} || printf "!!! circular loop !!!\n" ""
@@ -230,12 +243,18 @@ show_elf() {
 		;;
 	esac
 	parent_elfs="${parent_elfs},${elf}"
+
 	if ${LIST} ; then
 		resolv_links "${resolved:-$1}" yes
 	else
 		resolv_links "${resolved:-$1}" no
-		printf "${resolved:-not found}"
+		if [ ${indent} -eq 0 ] ; then
+			${HEADER} && printf "${resolved:-not found}"
+		else
+			printf "${resolved:-not found}"
+		fi
 	fi
+
 	resolved=${_resolv_links}
 	if [ ${indent} -eq 0 ] ; then
 		elf_specs=$(elf_specs "${resolved}")
@@ -244,10 +263,12 @@ show_elf() {
 		[ "${interp#/}" = "${interp}" ] && interp=
 		[ -n "${interp}" ] && interp="${ROOT}${interp#/}"
 
-		if ${LIST} ; then
-			[ -n "${interp}" ] && resolv_links "${interp}" yes
-		else
-			printf " (interpreter => ${interp:-none})"
+		if ${HEADER} ; then
+			if ${LIST} ; then
+				[ -n "${interp}" ] && resolv_links "${interp}" yes
+			else
+				printf " (interpreter => ${interp:-none})"
+			fi
 		fi
 		if [ -r "${interp}" ] ; then
 			# Extract the default lib paths out of the ldso.
@@ -259,11 +280,18 @@ show_elf() {
 		fi
 		interp=${interp##*/}
 	fi
-	${LIST} || printf "\n"
+	if [ ${indent} -eq 0 ]; then
+		if ${HEADER}; then
+			${LIST} || printf "\n"
+		fi
+	else
+		${LIST} || printf "\n"
+	fi
 
 	[ -z "${resolved}" ] && return
-
-	libs=$(elf_needed "${resolved}")
+	if ${recurs} ; then
+		libs=$(elf_needed "${resolved}")
+	fi
 
 	local my_allhits
 	if ! ${SHOW_ALL} ; then
@@ -283,7 +311,7 @@ show_elf() {
 		esac
 		find_elf "${lib}" "${resolved}"
 		rlib=${_find_elf}
-		show_elf "${rlib:-${lib}}" $((indent + 4)) "${parent_elfs}"
+		show_elf "${rlib:-${lib}}" $((indent + 4)) "${parent_elfs}" ${readelf}
 	done
 }
 
@@ -291,8 +319,10 @@ SHOW_ALL=false
 SET_X=false
 LIST=false
 AUTO_ROOT=true
+RECURSIVE=true
+HEADER=true
 
-while getopts haxVR:l-:  OPT ; do
+while getopts haxVb:R:l-:  OPT ; do
 	case ${OPT} in
 	a) SHOW_ALL=true;;
 	x) SET_X=true;;
@@ -300,9 +330,12 @@ while getopts haxVR:l-:  OPT ; do
 	V) version;;
 	R) ROOT="${OPTARG%/}/";;
 	l) LIST=true;;
+	b) BACKEND="${OPTARG%}";;
 	-) # Long opts ftw.
 		case ${OPTARG} in
 		no-auto-root) AUTO_ROOT=false;;
+		no-recursive) RECURSIVE=false;;
+		no-header) HEADER=false;;
 		*) usage 1;;
 		esac
 		;;
@@ -314,13 +347,15 @@ shift $(( $OPTIND - 1))
 
 ${SET_X} && set -x
 
-if which scanelf >/dev/null; then
-	BACKEND=scanelf
-elif which objdump >/dev/null && which readelf >/dev/null; then
-	BACKEND=binutils
-else
-	error "This tool needs either scanelf or binutils (objdump and readelf)"
-	exit 1
+if [ -z "${BACKEND}" ]; then
+	if which scanelf >/dev/null; then
+		BACKEND=scanelf
+	elif which readelf >/dev/null; then
+		BACKEND=readelf
+	else
+		error "This tool needs either scanelf or readelf"
+		exit 1
+	fi
 fi
 
 ret=0
@@ -343,8 +378,7 @@ for elf ; do
 	else
 		allhits=""
 		[ "${elf##*/*}" = "${elf}" ] && elf="./${elf}"
-		show_elf "${elf}" 0 ""
+		show_elf "${elf}" 0 "" true
 	fi
 done
 exit ${ret}
-
