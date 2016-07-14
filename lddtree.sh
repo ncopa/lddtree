@@ -21,8 +21,11 @@ usage() {
 	Options:
 	  -a              Show all duplicated dependencies
 	  -x              Run with debugging
+	  -b <backend>    Force use of specific backend tools (scanelf or binutils)
 	  -R <root>       Use this ROOT filesystem tree
 	  --no-auto-root  Do not automatically prefix input ELFs with ROOT
+	  --no-recursive  Do not recursivly parse dependencies
+	  --no-header     Do not show header (binary and interpreter info)
 	  -l              Display output in a flat format
 	  -h              Show this help output
 	  -V              Show version information
@@ -215,14 +218,21 @@ resolv_links() {
 }
 
 show_elf() {
-	local elf=$1 indent=$2 parent_elfs=$3
+	local elf="$1" indent="$2" parent_elfs="$3" recurs="$4"
 	local rlib lib libs
 	local interp resolved
 	find_elf "${elf}"
 	resolved=${_find_elf}
 	elf=${elf##*/}
 
-	${LIST} || printf "%${indent}s%s => " "" "${elf}"
+	if [ ${indent} -eq 0 ]; then
+		if ${HEADER}; then
+			${LIST} || printf "%${indent}s%s => " "" "${elf}"
+		fi
+	else
+		${LIST} || printf "%${indent}s%s => " "" "${elf}"
+	fi
+
 	case ",${parent_elfs}," in
 	*,${elf},*)
 		${LIST} || printf "!!! circular loop !!!\n" ""
@@ -230,12 +240,18 @@ show_elf() {
 		;;
 	esac
 	parent_elfs="${parent_elfs},${elf}"
+
 	if ${LIST} ; then
 		resolv_links "${resolved:-$1}" yes
 	else
 		resolv_links "${resolved:-$1}" no
-		printf "${resolved:-not found}"
+		if [ ${indent} -eq 0 ] ; then
+			${HEADER} && printf "${resolved:-not found}"
+		else
+			printf "${resolved:-not found}"
+		fi
 	fi
+
 	resolved=${_resolv_links}
 	if [ ${indent} -eq 0 ] ; then
 		elf_specs=$(elf_specs "${resolved}")
@@ -244,10 +260,12 @@ show_elf() {
 		[ "${interp#/}" = "${interp}" ] && interp=
 		[ -n "${interp}" ] && interp="${ROOT}${interp#/}"
 
-		if ${LIST} ; then
-			[ -n "${interp}" ] && resolv_links "${interp}" yes
-		else
-			printf " (interpreter => ${interp:-none})"
+		if ${HEADER} ; then
+			if ${LIST} ; then
+				[ -n "${interp}" ] && resolv_links "${interp}" yes
+			else
+				printf " (interpreter => ${interp:-none})"
+			fi
 		fi
 		if [ -r "${interp}" ] ; then
 			# Extract the default lib paths out of the ldso.
@@ -259,11 +277,18 @@ show_elf() {
 		fi
 		interp=${interp##*/}
 	fi
-	${LIST} || printf "\n"
+	if [ ${indent} -eq 0 ]; then
+		if ${HEADER}; then
+			${LIST} || printf "\n"
+		fi
+	else
+		${LIST} || printf "\n"
+	fi
 
 	[ -z "${resolved}" ] && return
-
-	libs=$(elf_needed "${resolved}")
+	if ${recurs} ; then
+		libs=$(elf_needed "${resolved}")
+	fi
 
 	local my_allhits
 	if ! ${SHOW_ALL} ; then
@@ -283,7 +308,7 @@ show_elf() {
 		esac
 		find_elf "${lib}" "${resolved}"
 		rlib=${_find_elf}
-		show_elf "${rlib:-${lib}}" $((indent + 4)) "${parent_elfs}"
+		show_elf "${rlib:-${lib}}" $((indent + 4)) "${parent_elfs}" ${RECURSIVE}
 	done
 }
 
@@ -291,8 +316,10 @@ SHOW_ALL=false
 SET_X=false
 LIST=false
 AUTO_ROOT=true
+RECURSIVE=true
+HEADER=true
 
-while getopts haxVR:l-:  OPT ; do
+while getopts haxVb:R:l-:  OPT ; do
 	case ${OPT} in
 	a) SHOW_ALL=true;;
 	x) SET_X=true;;
@@ -300,9 +327,12 @@ while getopts haxVR:l-:  OPT ; do
 	V) version;;
 	R) ROOT="${OPTARG%/}/";;
 	l) LIST=true;;
+	b) BACKEND="${OPTARG%}";;
 	-) # Long opts ftw.
 		case ${OPTARG} in
 		no-auto-root) AUTO_ROOT=false;;
+		no-recursive) RECURSIVE=false;;
+		no-header) HEADER=false;;
 		*) usage 1;;
 		esac
 		;;
@@ -314,13 +344,15 @@ shift $(( $OPTIND - 1))
 
 ${SET_X} && set -x
 
-if which scanelf >/dev/null; then
-	BACKEND=scanelf
-elif which objdump >/dev/null && which readelf >/dev/null; then
-	BACKEND=binutils
-else
-	error "This tool needs either scanelf or binutils (objdump and readelf)"
-	exit 1
+if [ -z "${BACKEND}" ]; then
+	if which scanelf >/dev/null; then
+		BACKEND=scanelf
+	elif which objdump >/dev/null && which readelf >/dev/null; then
+		BACKEND=binutils
+	else
+		error "This tool needs either scanelf or binutils (objdump and readelf)"
+		exit 1
+	fi
 fi
 
 ret=0
@@ -343,8 +375,7 @@ for elf ; do
 	else
 		allhits=""
 		[ "${elf##*/*}" = "${elf}" ] && elf="./${elf}"
-		show_elf "${elf}" 0 ""
+		show_elf "${elf}" 0 "" true
 	fi
 done
 exit ${ret}
-
