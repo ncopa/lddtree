@@ -24,6 +24,7 @@ usage() {
 	  -b              Force use of specific backend tools (scanelf or binutils)
 	  -R <root>       Use this ROOT filesystem tree
 	  --no-auto-root  Do not automatically prefix input ELFs with ROOT
+	  --no-recursive  Do not recursivly parse dependencies
 	  -l              Display output in a flat format
 	  -h              Show this help output
 	  -V              Show version information
@@ -216,7 +217,7 @@ resolv_links() {
 }
 
 show_elf() {
-	local elf=$1 indent=$2 parent_elfs=$3
+	local elf="$1" indent="$2" parent_elfs="$3" recurs="$4"
 	local rlib lib libs
 	local interp resolved
 	find_elf "${elf}"
@@ -263,8 +264,9 @@ show_elf() {
 	${LIST} || printf "\n"
 
 	[ -z "${resolved}" ] && return
-
-	libs=$(elf_needed "${resolved}")
+	if ${recurs} ; then
+		libs=$(elf_needed "${resolved}")
+	fi
 
 	local my_allhits
 	if ! ${SHOW_ALL} ; then
@@ -284,7 +286,7 @@ show_elf() {
 		esac
 		find_elf "${lib}" "${resolved}"
 		rlib=${_find_elf}
-		show_elf "${rlib:-${lib}}" $((indent + 4)) "${parent_elfs}"
+		show_elf "${rlib:-${lib}}" $((indent + 4)) "${parent_elfs}" ${RECURSIVE}
 	done
 }
 
@@ -292,6 +294,7 @@ SHOW_ALL=false
 SET_X=false
 LIST=false
 AUTO_ROOT=true
+RECURSIVE=true
 
 while getopts haxVb:R:l-:  OPT ; do
 	case ${OPT} in
@@ -305,6 +308,7 @@ while getopts haxVb:R:l-:  OPT ; do
 	-) # Long opts ftw.
 		case ${OPTARG} in
 		no-auto-root) AUTO_ROOT=false;;
+		no-recursive) RECURSIVE=false;;
 		*) usage 1;;
 		esac
 		;;
@@ -347,7 +351,7 @@ for elf ; do
 	else
 		allhits=""
 		[ "${elf##*/*}" = "${elf}" ] && elf="./${elf}"
-		show_elf "${elf}" 0 ""
+		show_elf "${elf}" 0 "" true
 	fi
 done
 exit ${ret}
