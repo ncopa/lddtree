@@ -144,8 +144,9 @@ list_existing_file() {
 # global variable _resolv_links
 resolv_links() {
 	_resolv_links="$1"
+	_list_files="$2"
 	local oldpwd="$PWD"
-	list_existing_file "${_resolv_links}"
+	[ "$_list_files" = yes ] && list_existing_file "${_resolv_links}"
 	cd "${_resolv_links%/*}"
 	while [ -L "$_resolv_links" ]; do
 		_resolv_links=$(readlink "$_resolv_links")
@@ -157,7 +158,7 @@ resolv_links() {
 			;;
 		esac
 		_resolv_links=$(pwd -P)/${_resolv_links##*/}
-		list_existing_file "${_resolv_links}"
+		[ "$_list_files" = yes ] && list_existing_file "${_resolv_links}"
 	done
 	cd "$oldpwd"
 }
@@ -179,10 +180,12 @@ show_elf() {
 	esac
 	parent_elfs="${parent_elfs},${elf}"
 	if ${LIST} ; then
-		resolv_links "${resolved:-$1}"
+		resolv_links "${resolved:-$1}" yes
 	else
+		resolv_links "${resolved:-$1}" no
 		printf "${resolved:-not found}"
 	fi
+	resolved=${_resolv_links}
 	if [ ${indent} -eq 0 ] ; then
 		elf_specs=$(elf_specs "${resolved}")
 		interp=$(scanelf -qF '#F%i' "${resolved}")
@@ -191,7 +194,7 @@ show_elf() {
 		[ -n "${interp}" ] && interp="${ROOT}${interp#/}"
 
 		if ${LIST} ; then
-			[ -n "${interp}" ] && resolv_links "${interp}"
+			[ -n "${interp}" ] && resolv_links "${interp}" yes
 		else
 			printf " (interpreter => ${interp:-none})"
 		fi
