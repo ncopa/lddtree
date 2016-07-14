@@ -318,7 +318,7 @@ if which scanelf >/dev/null; then
 elif which objdump >/dev/null && which readelf >/dev/null; then
 	BACKEND=binutils
 else
-	error "This tool neeeds either scanelf or binutils (objdump and readelf)"
+	error "This tool needs either scanelf or binutils (objdump and readelf)"
 	exit 1
 fi
 
