@@ -9,8 +9,10 @@ resolving elf dependencies when creating initramfs images.
 Differences from pax-utils' bash version:
 * don't use /bin/bash
 * resolv symlinks
+* fall back to objdump and readelf if scanelf is not found
 
-lddtree.sh depends on scanelf from pax-utils.
+lddtree.sh depends on scanelf from pax-utils or objdump and readelf from
+binutils.
 
 ```
 Usage: lddtree.sh [options] ELFFILE...
