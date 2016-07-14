@@ -40,13 +40,37 @@ error() {
 	return 1
 }
 
-elf_specs() {
+# functions for scanelf backend
+elf_rpath_scanelf() {
+	scanelf -qF '#F%r' "$@"
+}
+
+elf_interp_scanelf() {
+	scanelf -qF '#F%i' "$@"
+}
+
+elf_needed_scanelf() {
+	scanelf -qF '#F%n' "$@"
+}
+
+elf_specs_scanelf() {
+	# %a = machine (EM) type
+	# %M = EI class
+	# %D = endian
+	# %I = osabi
+
 	# With glibc, the NONE, SYSV, GNU, and LINUX OSABI's are compatible.
 	# LINUX and GNU are the same thing, as are NONE and SYSV, so normalize
 	# GNU & LINUX to NONE. #442024 #464380
 	scanelf -BF '#F%a %M %D %I' "$1" | \
 		sed -r 's: (LINUX|GNU)$: NONE:'
 }
+
+# elf wrapper functions
+elf_rpath() { elf_rpath_$BACKEND "$@"; }
+elf_interp() { elf_interp_$BACKEND "$@"; }
+elf_needed() { elf_needed_$BACKEND "$@"; }
+elf_specs() { elf_specs_$BACKEND "$1"; }
 
 unset lib_paths_fallback
 for p in ${ROOT}lib* ${ROOT}usr/lib* ${ROOT}usr/local/lib*; do
@@ -86,7 +110,7 @@ find_elf() {
 
 		if [ "${c_last_needed_by}" != "${needed_by}" ] ; then
 			c_last_needed_by="${needed_by}"
-			c_last_needed_by_rpaths=$(scanelf -qF '#F%r' "${needed_by}" | \
+			c_last_needed_by_rpaths=$(elf_rpath "${needed_by}" | \
 				sed -e "s:[$]ORIGIN:${needed_by%/*}:")
 		fi
 		if [ -n "${c_last_needed_by_rpaths}" ]; then
@@ -188,7 +212,7 @@ show_elf() {
 	resolved=${_resolv_links}
 	if [ ${indent} -eq 0 ] ; then
 		elf_specs=$(elf_specs "${resolved}")
-		interp=$(scanelf -qF '#F%i' "${resolved}")
+		interp=$(elf_interp "${resolved}")
 		# ignore interpreters that do not have absolute path
 		[ "${interp#/}" = "${interp}" ] && interp=
 		[ -n "${interp}" ] && interp="${ROOT}${interp#/}"
@@ -211,7 +235,7 @@ show_elf() {
 
 	[ -z "${resolved}" ] && return
 
-	libs=$(scanelf -qF '#F%n' "${resolved}")
+	libs=$(elf_needed "${resolved}")
 
 	local my_allhits
 	if ! ${SHOW_ALL} ; then
@@ -261,6 +285,13 @@ shift $(( $OPTIND - 1))
 [ -z "$1" ] && usage 1
 
 ${SET_X} && set -x
+
+if which scanelf >/dev/null; then
+	BACKEND=scanelf
+else
+	error "Could not find scanelf"
+	exit 1
+fi
 
 ret=0
 for elf ; do
