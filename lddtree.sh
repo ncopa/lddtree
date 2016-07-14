@@ -21,7 +21,7 @@ usage() {
 	Options:
 	  -a              Show all duplicated dependencies
 	  -x              Run with debugging
-	  -b <backend>    Force use of specific backend tools (scanelf or binutils)
+	  -b <backend>    Force use of specific backend tools (scanelf or readelf)
 	  -R <root>       Use this ROOT filesystem tree
 	  --no-auto-root  Do not automatically prefix input ELFs with ROOT
 	  --no-recursive  Do not recursivly parse dependencies
@@ -70,12 +70,12 @@ elf_specs_scanelf() {
 
 
 
-# functions for binutils backend
-elf_rpath_binutils() {
+# functions for readelf backend
+elf_rpath_readelf() {
 	readelf -d "$1" | awk '$2 == "(RPATH)" || $2 == "(RUNPATH)" { print $5 }' | cut -d '[' -f 2 | sed 's/]//'
 }
 
-elf_interp_binutils() {
+elf_interp_readelf() {
 	# readelf -p .interp ouputs:
 	#
 	# String dump of section '.interp':
@@ -84,11 +84,11 @@ elf_interp_binutils() {
 	readelf  -p .interp "$1" | sed -E -n '/\[\s*[0-9]\]/s/^\s*\[.*\]\s*(.*)/\1/p'
 }
 
-elf_needed_binutils() {
+elf_needed_readelf() {
 	readelf -d "$1" | grep "NEEDED" | grep -o -E "\[[^]]*\]" | grep -o -E "[^][]*" | tr '\n' ',' | sed 's/,$//'
 }
 
-elf_specs_binutils() {
+elf_specs_readelf() {
 	# get Class, Data, Machine and OS/ABI.
 	# the OS/ABI 'GNU', 'System V' and 'Linux' are compatible so normalize
 	readelf -h "$1" \
@@ -311,7 +311,7 @@ show_elf() {
 		esac
 		find_elf "${lib}" "${resolved}"
 		rlib=${_find_elf}
-		show_elf "${rlib:-${lib}}" $((indent + 4)) "${parent_elfs}" ${RECURSIVE}
+		show_elf "${rlib:-${lib}}" $((indent + 4)) "${parent_elfs}" ${readelf}
 	done
 }
 
@@ -350,10 +350,10 @@ ${SET_X} && set -x
 if [ -z "${BACKEND}" ]; then
 	if which scanelf >/dev/null; then
 		BACKEND=scanelf
-	elif which objdump >/dev/null && which readelf >/dev/null; then
-		BACKEND=binutils
+	elif which readelf >/dev/null; then
+		BACKEND=readelf
 	else
-		error "This tool needs either scanelf or binutils (objdump and readelf)"
+		error "This tool needs either scanelf or readelf"
 		exit 1
 	fi
 fi

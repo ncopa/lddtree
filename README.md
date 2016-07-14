@@ -11,8 +11,8 @@ Differences from pax-utils' bash version:
 * resolv symlinks
 * fall back to objdump and readelf if scanelf is not found
 
-lddtree.sh depends on scanelf from pax-utils or objdump and readelf from
-binutils.
+lddtree.sh depends on scanelf from pax-utils package or readelf from
+binutils package.
 
 ```
 Usage: lddtree.sh [options] ELFFILE...
@@ -21,7 +21,7 @@ Options:
 
   -a              Show all duplicated dependencies
   -x              Run with debugging
-  -b <backend>    Force use of specific backend tools (scanelf or binutils)
+  -b <backend>    Force use of specific backend tools (scanelf or readelf)
   -R <root>       Use this ROOT filesystem tree
   --no-auto-root  Do not automatically prefix input ELFs with ROOT
   --no-recursive  Do not recursivly parse dependencies
