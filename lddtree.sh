@@ -66,6 +66,33 @@ elf_specs_scanelf() {
 		sed -r 's: (LINUX|GNU)$: NONE:'
 }
 
+# functions for binutils backend
+elf_rpath_binutils() {
+	objdump -x "$@" | awk '$1 == "RPATH" || $1 == "RUNPATH" { print $2 }'
+}
+
+elf_interp_binutils() {
+	# readelf -p .interp ouputs:
+	#
+	# String dump of section '.interp':
+	#  [     0]  /lib/ld-musl-x86_64.so.1
+	#
+	readelf  -p .interp "$1" | sed -E -n '/\[\s*[0-9]\]/s/^\s*\[.*\]\s*(.*)/\1/p'
+}
+
+elf_needed_binutils() {
+	objdump -x "$@" | awk '$1 == "NEEDED" { line=line sep $2 ; sep="," } END { print line }'
+}
+
+elf_specs_binutils() {
+	# get Class, Data, Machine and OS/ABI.
+	# the OS/ABI 'System V' and 'Linux' are compatible so normalize those
+	readelf -h "$1" \
+		| awk -F: '$1 ~ /Class|Data|Machine|OS.ABI/ {gsub(/^ +/, "", $2); print $2}' \
+		| sed -E -e 's/UNIX - (System V|Linux)/UNIX/' \
+		| tr '\n' ' '
+}
+
 # elf wrapper functions
 elf_rpath() { elf_rpath_$BACKEND "$@"; }
 elf_interp() { elf_interp_$BACKEND "$@"; }
@@ -288,8 +315,10 @@ ${SET_X} && set -x
 
 if which scanelf >/dev/null; then
 	BACKEND=scanelf
+elif which objdump >/dev/null && which readelf >/dev/null; then
+	BACKEND=binutils
 else
-	error "Could not find scanelf"
+	error "This tool neeeds either scanelf or binutils (objdump and readelf)"
 	exit 1
 fi
 
