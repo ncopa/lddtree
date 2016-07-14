@@ -86,10 +86,10 @@ elf_needed_binutils() {
 
 elf_specs_binutils() {
 	# get Class, Data, Machine and OS/ABI.
-	# the OS/ABI 'System V' and 'Linux' are compatible so normalize those
+	# the OS/ABI 'GNU', 'System V' and 'Linux' are compatible so normalize
 	readelf -h "$1" \
 		| awk -F: '$1 ~ /Class|Data|Machine|OS.ABI/ {gsub(/^ +/, "", $2); print $2}' \
-		| sed -E -e 's/UNIX - (System V|Linux)/UNIX/' \
+		| sed -E -e 's/UNIX - (System V|Linux|GNU)/UNIX/' \
 		| tr '\n' ' '
 }
 
