@@ -25,6 +25,7 @@ usage() {
 	  -R <root>       Use this ROOT filesystem tree
 	  --no-auto-root  Do not automatically prefix input ELFs with ROOT
 	  --no-recursive  Do not recursivly parse dependencies
+	  --no-header     Do not show header (binary and interpreter info)
 	  -l              Display output in a flat format
 	  -h              Show this help output
 	  -V              Show version information
@@ -224,7 +225,14 @@ show_elf() {
 	resolved=${_find_elf}
 	elf=${elf##*/}
 
-	${LIST} || printf "%${indent}s%s => " "" "${elf}"
+	if [ ${indent} -eq 0 ]; then
+		if ${HEADER}; then
+			${LIST} || printf "%${indent}s%s => " "" "${elf}"
+		fi
+	else
+		${LIST} || printf "%${indent}s%s => " "" "${elf}"
+	fi
+
 	case ",${parent_elfs}," in
 	*,${elf},*)
 		${LIST} || printf "!!! circular loop !!!\n" ""
@@ -232,12 +240,18 @@ show_elf() {
 		;;
 	esac
 	parent_elfs="${parent_elfs},${elf}"
+
 	if ${LIST} ; then
 		resolv_links "${resolved:-$1}" yes
 	else
 		resolv_links "${resolved:-$1}" no
-		printf "${resolved:-not found}"
+		if [ ${indent} -eq 0 ] ; then
+			${HEADER} && printf "${resolved:-not found}"
+		else
+			printf "${resolved:-not found}"
+		fi
 	fi
+
 	resolved=${_resolv_links}
 	if [ ${indent} -eq 0 ] ; then
 		elf_specs=$(elf_specs "${resolved}")
@@ -246,10 +260,12 @@ show_elf() {
 		[ "${interp#/}" = "${interp}" ] && interp=
 		[ -n "${interp}" ] && interp="${ROOT}${interp#/}"
 
-		if ${LIST} ; then
-			[ -n "${interp}" ] && resolv_links "${interp}" yes
-		else
-			printf " (interpreter => ${interp:-none})"
+		if ${HEADER} ; then
+			if ${LIST} ; then
+				[ -n "${interp}" ] && resolv_links "${interp}" yes
+			else
+				printf " (interpreter => ${interp:-none})"
+			fi
 		fi
 		if [ -r "${interp}" ] ; then
 			# Extract the default lib paths out of the ldso.
@@ -261,7 +277,13 @@ show_elf() {
 		fi
 		interp=${interp##*/}
 	fi
-	${LIST} || printf "\n"
+	if [ ${indent} -eq 0 ]; then
+		if ${HEADER}; then
+			${LIST} || printf "\n"
+		fi
+	else
+		${LIST} || printf "\n"
+	fi
 
 	[ -z "${resolved}" ] && return
 	if ${recurs} ; then
@@ -295,6 +317,7 @@ SET_X=false
 LIST=false
 AUTO_ROOT=true
 RECURSIVE=true
+HEADER=true
 
 while getopts haxVb:R:l-:  OPT ; do
 	case ${OPT} in
@@ -309,6 +332,7 @@ while getopts haxVb:R:l-:  OPT ; do
 		case ${OPTARG} in
 		no-auto-root) AUTO_ROOT=false;;
 		no-recursive) RECURSIVE=false;;
+		no-header) HEADER=false;;
 		*) usage 1;;
 		esac
 		;;
