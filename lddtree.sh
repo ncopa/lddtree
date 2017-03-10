@@ -5,7 +5,7 @@
 # Distributed under the terms of the GNU General Public License v2
 
 argv0=${0##*/}
-version=1.25
+version=1.26
 
 : ${ROOT:=/}
 
