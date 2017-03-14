@@ -314,9 +314,9 @@ shift $(( $OPTIND - 1))
 
 ${SET_X} && set -x
 
-if which scanelf >/dev/null; then
+if which scanelf >/dev/null 2&>1; then
 	BACKEND=scanelf
-elif which objdump >/dev/null && which readelf >/dev/null; then
+elif which objdump >/dev/null 2&>1 && which readelf >/dev/null 2&>1; then
 	BACKEND=binutils
 else
 	error "This tool needs either scanelf or binutils (objdump and readelf)"
