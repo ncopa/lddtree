@@ -68,7 +68,7 @@ elf_specs_scanelf() {
 
 # functions for binutils backend
 elf_rpath_binutils() {
-	objdump -x "$@" | awk '$1 == "RPATH" || $1 == "RUNPATH" { print $2 }'
+	objdump -x "$@" | awk '$1 == "RUNPATH" { if($2!="") {runpath=$2;} }  $1 == "RPATH" { if($2!="") {rpath=$2;} } END { if(runpath!="") {print runpath;} else {print rpath;} }'
 }
 
 elf_interp_binutils() {
