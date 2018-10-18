@@ -89,7 +89,7 @@ c_ldso_paths_loaded='false'
 find_elf() {
 	_find_elf=''
 
-	local elf="$1" needed_by="$2"
+	local elf="$1" needed_by="$2" interp=
 	if [ "${elf}" != "${elf##*/}" ] && [ -e "${elf}" ] ; then
 		_find_elf=${elf}
 		return 0
@@ -133,28 +133,36 @@ find_elf() {
 		if ! ${c_ldso_paths_loaded} ; then
 			c_ldso_paths_loaded='true'
 			c_ldso_paths=
-			if [ -r ${ROOT}etc/ld.so.conf ] ; then
-				read_ldso_conf() {
-					local line p
-					for p ; do
-						# if the glob didnt match anything #360041,
-						# or the files arent readable, skip it
-						[ -r "${p}" ] || continue
-						while read line ; do
-							case ${line} in
-								"#"*) ;;
-								"include "*) read_ldso_conf ${line#* } ;;
-								*) c_ldso_paths="$c_ldso_paths:${ROOT}${line#/}";;
-							esac
-						done <"${p}"
-					done
-				}
-				# the 'include' command is relative
-				local _oldpwd="$PWD"
-				cd "$ROOT"etc >/dev/null
+			read_ldso_conf() {
+				local line p
+				for p ; do
+					# if the glob didnt match anything #360041,
+					# or the files arent readable, skip it
+					[ -r "${p}" ] || continue
+					while read line ; do
+						case ${line} in
+							"#"*) ;;
+							"include "*) read_ldso_conf ${line#* } ;;
+							*) c_ldso_paths="$c_ldso_paths:${ROOT}${line#/}";;
+						esac
+					done <"${p}"
+				done
+			}
+			# the 'include' command is relative
+			local _oldpwd="$PWD"
+			cd "$ROOT"etc >/dev/null
+			interp=$(elf_interp "${needed_by}")
+			case "$interp" in
+			*/ld-musl-*)
+				musl_arch=${interp%.so*}
+				musl_arch=${musl_arch##*-}
+				read_ldso_conf "${ROOT}"etc/ld-musl-${musl_arch}.path
+				;;
+			*/ld-linux*|*/ld.so*) # glibc
 				read_ldso_conf "${ROOT}"etc/ld.so.conf
-				cd "$_oldpwd"
-			fi
+				;;
+			esac
+			cd "$_oldpwd"
 		fi
 		if [ -n "${c_ldso_paths}" ] ; then
 			check_paths "${elf}" "${c_ldso_paths}" && return 0
