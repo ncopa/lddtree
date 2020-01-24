@@ -13,7 +13,7 @@ version=1.26
 [ "${ROOT}" = "${ROOT#/}" ] && ROOT="${PWD}/${ROOT}"
 
 usage() {
-	cat <<-EOF
+	cat >&2 <<-EOF
 	Display ELF dependencies as a tree
 
 	Usage: ${argv0} [options] <ELF file[s]>
