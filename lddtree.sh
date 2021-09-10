@@ -107,7 +107,7 @@ c_ldso_paths_loaded='false'
 find_elf() {
 	_find_elf=''
 
-	local elf=$1 needed_by=$2
+	local elf="$1" needed_by="$2"
 	if [ "${elf}" != "${elf##*/}" ] && [ -e "${elf}" ] ; then
 		_find_elf=${elf}
 		return 0
@@ -215,7 +215,7 @@ resolv_links() {
 }
 
 show_elf() {
-	local elf=$1 indent=$2 parent_elfs=$3
+	local elf="$1" indent="$2" parent_elfs="$3"
 	local rlib lib libs
 	local interp resolved
 	find_elf "${elf}"
