@@ -19,13 +19,13 @@ usage() {
 	Usage: ${argv0} [options] <ELF file[s]>
 
 	Options:
-	  -a              Show all duplicated dependencies
-	  -x              Run with debugging
-	  -R <root>       Use this ROOT filesystem tree
-	  --no-auto-root  Do not automatically prefix input ELFs with ROOT
-	  -l              Display output in a flat format
-	  -h              Show this help output
-	  -V              Show version information
+	  -a                  Show all duplicated dependencies
+	  -x                  Run with debugging
+	  -R <root>           Use this ROOT filesystem tree
+	  -N, --no-auto-root  Do not automatically prefix input ELFs with ROOT
+	  -l                  Display output in a flat format
+	  -h                  Show this help output
+	  -V                  Show version information
 	EOF
 	exit ${1:-0}
 }
@@ -222,7 +222,11 @@ show_elf() {
 	resolved=${_find_elf}
 	elf=${elf##*/}
 
-	${LIST} || printf "%${indent}s%s => " "" "${elf}"
+	if [ ${indent} -eq 0 ] ; then
+		${LIST} || printf "%s => " "${elf}"
+	else
+		${LIST} || printf "%${indent}s%s => " "" "${elf}"
+	fi
 	case ",${parent_elfs}," in
 	*,${elf},*)
 		${LIST} || printf "!!! circular loop !!!\n" ""
@@ -292,7 +296,12 @@ SET_X=false
 LIST=false
 AUTO_ROOT=true
 
-while getopts haxVR:l-:  OPT ; do
+# no long opts in POSIX sh
+case "$@" in *"--no-auto-root"*)
+	set -- $(echo "$@" | sed 's/--no-auto-root/-N/g') ;;
+esac
+
+while getopts haxVR:lN  OPT ; do
 	case ${OPT} in
 	a) SHOW_ALL=true;;
 	x) SET_X=true;;
@@ -300,12 +309,7 @@ while getopts haxVR:l-:  OPT ; do
 	V) version;;
 	R) ROOT="${OPTARG%/}/";;
 	l) LIST=true;;
-	-) # Long opts ftw.
-		case ${OPTARG} in
-		no-auto-root) AUTO_ROOT=false;;
-		*) usage 1;;
-		esac
-		;;
+	N) AUTO_ROOT=false;;
 	?) usage 1;;
 	esac
 done
