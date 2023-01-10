@@ -13,7 +13,7 @@ version=1.26
 [ "${ROOT}" = "${ROOT#/}" ] && ROOT="${PWD}/${ROOT}"
 
 usage() {
-	cat >&2 <<-EOF
+	cat <<-EOF
 	Display ELF dependencies as a tree
 
 	Usage: ${argv0} [options] <ELF file[s]>
@@ -27,7 +27,6 @@ usage() {
 	  -h              Show this help output
 	  -V              Show version information
 	EOF
-	exit ${1:-0}
 }
 
 version() {
@@ -296,21 +295,24 @@ while getopts haxVR:l-:  OPT ; do
 	case ${OPT} in
 	a) SHOW_ALL=true;;
 	x) SET_X=true;;
-	h) usage;;
+	h) usage; exit 0;;
 	V) version;;
 	R) ROOT="${OPTARG%/}/";;
 	l) LIST=true;;
 	-) # Long opts ftw.
 		case ${OPTARG} in
 		no-auto-root) AUTO_ROOT=false;;
-		*) usage 1;;
+		*) usage >&2; exit 1;;
 		esac
 		;;
-	?) usage 1;;
+	?) usage >&2; exit 1;;
 	esac
 done
 shift $(( $OPTIND - 1))
-[ -z "$1" ] && usage 1
+if [ -z "$1" ]; then
+	usage >&2
+	exit 1
+fi
 
 ${SET_X} && set -x
 
