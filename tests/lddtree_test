@@ -4,7 +4,9 @@
 
 init_tests \
 	lddtree_usage \
-	lddtree_version
+	lddtree_version \
+	lddtree_sh \
+	lddtree_sh_flat
 
 lddtree_usage_body() {
 	atf_check -o match:"Usage:" lddtree.sh -h
@@ -15,4 +17,21 @@ lddtree_version_body() {
 	atf_check -s exit:0 \
 		-o match:'lddtree-[0-9]*.[0-9]*' \
 		lddtree.sh -V
+}
+
+# test without -R
+lddtree_sh_body() {
+	atf_check -s exit:0 \
+		-o match:'sh => /bin/sh \(interpreter .*\)' \
+		lddtree.sh /bin/sh
+}
+
+# test without -R, flat output
+# should only output lines prefixed with /
+lddtree_sh_flat_body() {
+	atf_check -s exit:0 \
+		-o match:'/bin/sh' \
+		-o not-match:'\(interpreter .*\)' \
+		-o not-match:'^[^/]' \
+		lddtree.sh -l /bin/sh
 }
