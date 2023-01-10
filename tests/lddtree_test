@@ -3,10 +3,16 @@
 . $(atf_get_srcdir)/test_env.sh
 
 init_tests \
-	lddtree_usage
+	lddtree_usage \
+	lddtree_version
 
 lddtree_usage_body() {
 	atf_check -o match:"Usage:" lddtree.sh -h
 	atf_check -s exit:1 -e match:"Usage:" lddtree.sh
 }
 
+lddtree_version_body() {
+	atf_check -s exit:0 \
+		-o match:'lddtree-[0-9]*.[0-9]*' \
+		lddtree.sh -V
+}
