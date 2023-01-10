@@ -1,0 +1,32 @@
+name: test
+on: [push]
+jobs:
+
+  alpine:
+    runs-on: ubuntu-latest
+    container:
+      image: alpine
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Install dependencies
+        run: |
+          apk add --update kyua make binutils scanelf
+      - name: Run tests
+        run: |
+          make check
+
+  debian:
+    runs-on: ubuntu-latest
+    container:
+      image: debian:testing
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Install dependencies
+        run: |
+          apt-get update
+          apt-get install -y kyua atf-sh make binutils
+      - name: Run tests
+        run: |
+          make check
