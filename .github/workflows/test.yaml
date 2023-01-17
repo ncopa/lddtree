@@ -20,6 +20,7 @@ jobs:
       - name: Install dependencies
         run: |
           apk add --update kyua make binutils scanelf
+          cat /proc/cpuinfo
       - name: Run tests
         run: |
           make check
