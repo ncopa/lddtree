@@ -219,7 +219,7 @@ show_elf() {
 		printf "${resolved:-not found}"
 	fi
 	resolved=${_resolv_links}
-	if [ ${indent} -eq 0 ] ; then
+	if [ ${indent:-0} -eq 0 ] ; then
 		elf_specs=$(elf_specs "${resolved}")
 		interp=$(elf_interp "${resolved}")
 		# ignore interpreters that do not have absolute path
@@ -265,7 +265,7 @@ show_elf() {
 		esac
 		find_elf "${lib}" "${resolved}"
 		rlib=${_find_elf}
-		show_elf "${rlib:-${lib}}" $((indent + 4)) "${parent_elfs}"
+		show_elf "${rlib:-${lib}}" $(( ${indent:-0} + 4)) "${parent_elfs}"
 	done
 }
 
@@ -347,7 +347,7 @@ for elf ; do
 	else
 		allhits=""
 		[ "${elf##*/*}" = "${elf}" ] && elf="./${elf}"
-		show_elf "${elf}" 0 ""
+		show_elf "${elf}"
 	fi
 done
 exit ${ret}
