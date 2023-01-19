@@ -148,21 +148,22 @@ find_elf() {
 					done <"${p}"
 				done
 			}
-			# the 'include' command is relative
 			local _oldpwd="$PWD"
-			cd "$ROOT"etc >/dev/null
-			interp=$(elf_interp "${needed_by}")
-			case "$interp" in
-			*/ld-musl-*)
-				musl_arch=${interp%.so*}
-				musl_arch=${musl_arch##*-}
-				read_ldso_conf "${ROOT}"etc/ld-musl-${musl_arch}.path
-				;;
-			*/ld-linux*|*/ld.so*) # glibc
-				read_ldso_conf "${ROOT}"etc/ld.so.conf
-				;;
-			esac
-			cd "$_oldpwd"
+			# the 'include' command is relative
+			if cd "$ROOT"etc 2>/dev/null; then
+				interp=$(elf_interp "${needed_by}")
+				local ldso_conf="${ROOT}"etc/ld.so.conf
+				case "$interp" in
+					*/ld-musl-*)
+						ldso_conf="${interp%.so*}"
+						ldso_conf="${ROOT}"etc/${ldso_conf##*/}.path
+						;;
+				esac
+				if [ -r "$ldso_conf" ]; then
+					read_ldso_conf "$ldso_conf"
+				fi
+				cd "$_oldpwd"
+			fi
 		fi
 		if [ -n "${c_ldso_paths}" ] ; then
 			check_paths "${elf}" "${c_ldso_paths}" && return 0
