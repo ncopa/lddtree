@@ -273,7 +273,7 @@ usage() {
 	cat <<-EOF
 	Display ELF dependencies as a tree
 
-	Usage: ${argv0} [options] <ELF file[s]>
+	Usage: ${argv0} [options] ELFFILE...
 
 	Options:
 	  -a, --all           Show all duplicated dependencies
