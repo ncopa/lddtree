@@ -12,7 +12,8 @@ init_tests \
 	lddtree_sh_list \
 	lddtree_sh_all \
 	lddtree_sh_debug \
-	lddtree_sh_missing_scanelf
+	lddtree_sh_missing_scanelf \
+	lddtree_root
 
 lddtree_usage_body() {
 	# usage to stdout, empty stderr
@@ -77,4 +78,16 @@ lddtree_sh_missing_scanelf_body() {
 	PATH=/bin atf_check -s exit:1 \
 		-e match:"needs either scanelf or binutils" \
 		"$SH" "$lddtree" /bin/sh
+}
+
+lddtree_root_body() {
+	cp -rva $(atf_get_srcdir)/testdata/x86_64/* "$PWD" \
+		|| atf_fail "failed to copy test data"
+	for arg in -R --root; do
+		atf_check -s exit:0 \
+			-o match:"^hello => $PWD/usr/bin/hello \(interpreter => $PWD/lib/ld-musl-x86_64.so.1\)" \
+			-o match:"^    libhello.so.1 => $PWD/usr/lib/libhello.so.1" \
+			-o match:"^    libc.musl-x86_64.so.1 => $PWD/lib/libc.musl-x86_64.so.1" \
+			"$SH" "$lddtree" "$arg" "$PWD"/ /usr/bin/hello
+	done
 }
