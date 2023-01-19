@@ -6,11 +6,14 @@ init_tests \
 	lddtree_usage \
 	lddtree_version \
 	lddtree_sh \
-	lddtree_sh_list
+	lddtree_sh_list \
+	lddtree_sh_all
 
 lddtree_usage_body() {
+	# usage to stdout, empty stderr
 	atf_check -o match:"Usage:" lddtree.sh -h
 	atf_check -o match:"Usage:" lddtree.sh --help
+	# usage to stderr, empty stdout
 	atf_check -s exit:1 -e match:"Usage:" lddtree.sh
 }
 
@@ -37,6 +40,15 @@ lddtree_sh_list_body() {
 			-o match:'/bin/sh' \
 			-o not-match:'\(interpreter .*\)' \
 			-o not-match:'^[^/]' \
+			lddtree.sh "$arg" /bin/sh
+	done
+}
+
+lddtree_sh_all_body() {
+	for arg in -a --all; do
+		atf_check -s exit:0 \
+			-o match:'/bin/sh' \
+			-o match:'\(interpreter .*\)' \
 			lddtree.sh "$arg" /bin/sh
 	done
 }
