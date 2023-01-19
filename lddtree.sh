@@ -12,23 +12,6 @@ version=1.26
 [ "${ROOT}" = "${ROOT%/}" ] && ROOT="${ROOT}/"
 [ "${ROOT}" = "${ROOT#/}" ] && ROOT="${PWD}/${ROOT}"
 
-usage() {
-	cat <<-EOF
-	Display ELF dependencies as a tree
-
-	Usage: ${argv0} [options] <ELF file[s]>
-
-	Options:
-	  -a              Show all duplicated dependencies
-	  -x              Run with debugging
-	  -R <root>       Use this ROOT filesystem tree
-	  --no-auto-root  Do not automatically prefix input ELFs with ROOT
-	  -l              Display output in a flat format
-	  -h              Show this help output
-	  -V              Show version information
-	EOF
-}
-
 version() {
 	exec echo "lddtree-${version}"
 }
@@ -286,29 +269,48 @@ show_elf() {
 	done
 }
 
+usage() {
+	cat <<-EOF
+	Display ELF dependencies as a tree
+
+	Usage: ${argv0} [options] <ELF file[s]>
+
+	Options:
+	  -a, --all           Show all duplicated dependencies
+	  -h, --help          Show this help output
+	  -l, --flat          Display output in a flat format
+	      --no-auto-root  Do not automatically prefix input ELFs with ROOT
+	  -R, --root ROOT     Use this ROOT filesystem tree
+	  -V, --version       Show version information
+	  -x, --debug         Run with debugging
+	EOF
+}
+
 SHOW_ALL=false
 SET_X=false
 LIST=false
 AUTO_ROOT=true
 
-while getopts haxVR:l-:  OPT ; do
-	case ${OPT} in
-	a) SHOW_ALL=true;;
-	x) SET_X=true;;
-	h) usage; exit 0;;
-	V) version;;
-	R) ROOT="${OPTARG%/}/";;
-	l) LIST=true;;
-	-) # Long opts ftw.
-		case ${OPTARG} in
-		no-auto-root) AUTO_ROOT=false;;
-		*) usage >&2; exit 1;;
-		esac
-		;;
-	?) usage >&2; exit 1;;
+OPTS=$(getopt -n "$argv0" -o "ahlR:Vx" -l "all,help,list,no-auto-root,root:,version,debug" -- "$@")
+if [ $? -ne 0 ]; then
+	usage >&2
+	exit 1
+fi
+eval set -- "$OPTS"
+while true; do
+	case "$1" in
+		-a|--all) SHOW_ALL=true;;
+		-x|--debug) SET_X=true;;
+		-h|--help) usage; exit 0;;
+		-V|--version) version;;
+		-R|--root) shift; ROOT="$1";;
+		-l|--list) LIST=true;;
+		--no-auto-root) AUTO_ROOT=false;;
+		--) shift; break;;
 	esac
+	shift
 done
-shift $(( $OPTIND - 1))
+
 if [ -z "$1" ]; then
 	usage >&2
 	exit 1
