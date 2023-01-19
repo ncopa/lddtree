@@ -18,7 +18,7 @@ lddtree_usage_body() {
 	atf_check -o match:"Usage:" "$SH" "$lddtree" -h
 	atf_check -o match:"Usage:" "$SH" "$lddtree" --help
 	# usage to stderr, empty stdout
-	atf_check -s exit:1 -e match:"Usage:" "$lddtree"
+	atf_check -s exit:1 -e match:"Usage:" "$SH" "$lddtree"
 }
 
 lddtree_version_body() {
