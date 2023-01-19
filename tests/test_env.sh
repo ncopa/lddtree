@@ -1,5 +1,7 @@
 # shellcheck shell=sh
-PATH=$(atf_get_srcdir)/..:$PATH
+
+SRCDIR=$(atf_get_srcdir)/..
+PATH=$SRCDIR:$PATH
 
 init_tests() {
 	TESTS=

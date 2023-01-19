@@ -1,27 +1,31 @@
 #!/usr/bin/env atf-sh
 
 . $(atf_get_srcdir)/test_env.sh
+: ${SH=/bin/sh}
+
+lddtree="$SRCDIR"/lddtree.sh
 
 init_tests \
 	lddtree_usage \
 	lddtree_version \
 	lddtree_sh \
 	lddtree_sh_list \
-	lddtree_sh_all
+	lddtree_sh_all \
+	lddtree_sh_debug
 
 lddtree_usage_body() {
 	# usage to stdout, empty stderr
-	atf_check -o match:"Usage:" lddtree.sh -h
-	atf_check -o match:"Usage:" lddtree.sh --help
+	atf_check -o match:"Usage:" "$SH" "$lddtree" -h
+	atf_check -o match:"Usage:" "$SH" "$lddtree" --help
 	# usage to stderr, empty stdout
-	atf_check -s exit:1 -e match:"Usage:" lddtree.sh
+	atf_check -s exit:1 -e match:"Usage:" "$lddtree"
 }
 
 lddtree_version_body() {
 	for arg in -V --version; do
 		atf_check -s exit:0 \
 			-o match:'lddtree-[0-9]*.[0-9]*' \
-			lddtree.sh "$arg"
+			"$SH" "$lddtree" "$arg"
 	done
 }
 
@@ -29,7 +33,7 @@ lddtree_version_body() {
 lddtree_sh_body() {
 	atf_check -s exit:0 \
 		-o match:'sh => /bin/sh \(interpreter .*\)' \
-		lddtree.sh /bin/sh
+		"$SH" "$lddtree" /bin/sh
 }
 
 # test without -R, flat output
@@ -40,7 +44,7 @@ lddtree_sh_list_body() {
 			-o match:'/bin/sh' \
 			-o not-match:'\(interpreter .*\)' \
 			-o not-match:'^[^/]' \
-			lddtree.sh "$arg" /bin/sh
+			"$SH" "$lddtree" "$arg" /bin/sh
 	done
 }
 
@@ -49,6 +53,16 @@ lddtree_sh_all_body() {
 		atf_check -s exit:0 \
 			-o match:'/bin/sh' \
 			-o match:'\(interpreter .*\)' \
-			lddtree.sh "$arg" /bin/sh
+			"$SH" "$lddtree" "$arg" /bin/sh
+	done
+}
+
+lddtree_sh_debug_body() {
+	for arg in -x --debug; do
+		atf_check -s exit:0 \
+			-o match:'/bin/sh' \
+			-o match:'\(interpreter .*\)' \
+			-e match:'^\+' \
+			"$SH" "$lddtree" "$arg" /bin/sh
 	done
 }
