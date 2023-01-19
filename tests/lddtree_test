@@ -11,7 +11,8 @@ init_tests \
 	lddtree_sh \
 	lddtree_sh_list \
 	lddtree_sh_all \
-	lddtree_sh_debug
+	lddtree_sh_debug \
+	lddtree_sh_missing_scanelf
 
 lddtree_usage_body() {
 	# usage to stdout, empty stderr
@@ -65,4 +66,15 @@ lddtree_sh_debug_body() {
 			-e match:'^\+' \
 			"$SH" "$lddtree" "$arg" /bin/sh
 	done
+}
+
+lddtree_sh_missing_scanelf_body() {
+	for tool in scanelf objdump; do
+		if PATH=/bin command -v "$tool"; then
+			atf_skip "$tool found in /bin"
+		fi
+	done
+	PATH=/bin atf_check -s exit:1 \
+		-e match:"needs either scanelf or binutils" \
+		"$SH" "$lddtree" /bin/sh
 }
