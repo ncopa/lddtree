@@ -4,6 +4,7 @@
 : ${SH=/bin/sh}
 
 lddtree="$SRCDIR"/lddtree.sh
+testdata=$(atf_get_srcdir)/testdata
 
 init_tests \
 	lddtree_usage \
@@ -14,7 +15,8 @@ init_tests \
 	lddtree_sh_debug \
 	lddtree_sh_missing_scanelf \
 	lddtree_root \
-	lddtree_no_auto_root
+	lddtree_no_auto_root \
+	lddtree_ldso_conf
 
 lddtree_usage_body() {
 	# usage to stdout, empty stderr
@@ -94,7 +96,7 @@ lddtree_root_body() {
 }
 
 lddtree_no_auto_root_body() {
-	cp -rva $(atf_get_srcdir)/testdata/x86_64/* "$PWD" \
+	cp -rva "$testdata"/x86_64/* "$PWD" \
 		|| atf_fail "failed to copy test data"
 	atf_check -s exit:0 \
 		-o match:"^hello => $PWD/usr/bin/hello \(interpreter => $PWD/lib/ld-musl-x86_64.so.1\)" \
@@ -102,4 +104,20 @@ lddtree_no_auto_root_body() {
 		-o match:"^    libc.musl-x86_64.so.1 => $PWD/lib/libc.musl-x86_64.so.1" \
 		"$SH" "$lddtree" --no-auto-root --root "$PWD"/ "$PWD/usr/bin/hello"
 }
+
+lddtree_ldso_conf_body() {
+	cp -rva "$testdata"/x86_64/* "$PWD" \
+		|| atf_fail "failed to copy test data"
+	mkdir etc
+	echo "/usr/gnu/lib" > etc/ld.so.conf
+	atf_check -s exit:0 \
+		-o match:"/usr/gnu/bin/hello" \
+		-o match:"/usr/gnu/lib/libhello.so.1" \
+		-o match:"/lib64/ld-linux-x86-64.so.2" \
+		-o match:"/lib/x86_64-linux-gnu/libc.so.6" \
+		-o not-match:"musl" \
+		-o not-match:"/usr/lib/libhello.so.1" \
+		"$SH" "$lddtree" --list --no-auto-root --root "$PWD"/ "$PWD/usr/gnu/bin/hello"
+}
+
 
