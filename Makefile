@@ -16,3 +16,5 @@ Kyuafile:
 	echo "include('tests/Kyuafile')" >> $@.tmp
 	mv $@.tmp $@
 
+lint:
+	shellcheck -e SC3043 lddtree.sh
