@@ -17,7 +17,8 @@ init_tests \
 	lddtree_root \
 	lddtree_no_auto_root \
 	lddtree_no_auto_root_list \
-	lddtree_ldso_conf
+	lddtree_ldso_conf \
+	lddtree_ld_musl_path_conf
 
 lddtree_usage_body() {
 	# usage to stdout, empty stderr
@@ -133,6 +134,22 @@ lddtree_ldso_conf_body() {
 		-o not-match:"musl" \
 		-o not-match:"/usr/lib/libhello.so.1" \
 		"$SH" "$lddtree" --list --no-auto-root --root "$PWD"/ "$PWD/usr/gnu/bin/hello"
+}
+
+lddtree_ld_musl_path_conf_body() {
+	cp -rva "$testdata"/x86_64/* "$PWD" \
+		|| atf_fail "failed to copy test data"
+	mkdir etc usr/musl
+	mv usr/lib usr/musl/
+	echo "/usr/musl/lib" > etc/ld-musl-x86_64.path
+	atf_check -s exit:0 \
+		-o match:"/usr/bin/hello" \
+		-o match:"/usr/musl/lib/libhello.so.1" \
+		-o match:"/lib/ld-musl-x86_64.so.1" \
+		-o match:"/lib/libc.musl-x86_64.so.1" \
+		-o not-match:"ld-linux-x86-64.so.2" \
+		-o not-match:"gnu" \
+		"$SH" "$lddtree" --list --no-auto-root --root "$PWD"/ "$PWD/usr/bin/hello"
 }
 
 
