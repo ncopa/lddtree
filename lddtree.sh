@@ -49,7 +49,7 @@ elf_specs_scanelf() {
 	# GNU & LINUX to NONE. #442024 #464380
 	# shellcheck disable=SC2317
 	scanelf -BF '#F%a %M %D %I' "$1" | \
-		sed -r 's: (LINUX|GNU)$: NONE:'
+		sed -E 's: (LINUX|GNU)$: NONE:'
 }
 
 # functions for binutils backend
