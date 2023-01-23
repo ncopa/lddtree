@@ -129,7 +129,7 @@ find_elf() {
 		if [ "${c_last_needed_by}" != "${needed_by}" ] ; then
 			c_last_needed_by="${needed_by}"
 			c_last_needed_by_rpaths=$(elf_rpath "${needed_by}" | \
-				sed -e "s:[$]ORIGIN:${needed_by%/*}:")
+				sed -E -e 's|:| |g' -e "s:[$](ORIGIN|\{ORIGIN\}):${needed_by%/*}:")
 		fi
 		if [ -n "${c_last_needed_by_rpaths}" ]; then
 			check_paths "${elf}" "${c_last_needed_by_rpaths}" && return 0
