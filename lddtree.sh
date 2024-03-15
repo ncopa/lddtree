@@ -136,7 +136,7 @@ find_elf() {
 		fi
 
 		if [ -n "${LD_LIBRARY_PATH}" ] ; then
-			check_paths "${elf}" "${LD_LIBRARY_PATH}"
+			check_paths "${elf}" "${LD_LIBRARY_PATH}" && return 0
 		fi
 
 		if ! ${c_ldso_paths_loaded} ; then
